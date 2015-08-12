@@ -45,7 +45,6 @@ public class main extends JavaPlugin implements Listener {
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if ((cmd.getName().equalsIgnoreCase("continue") && sender instanceof Player) && (args.length == 0)) {
 			Player player = (Player) sender;
-			sender.sendMessage("wee lets go!");
 			if (tppvp.get(player) != null) {
 				pvpproced.put(player, true);
 				player.teleport(tppvp.get(player));
