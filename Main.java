@@ -1,5 +1,7 @@
 package Banished.blockynights;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
@@ -18,11 +20,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
 import com.palmergames.bukkit.towny.object.Resident;
+import com.palmergames.bukkit.towny.object.TownBlock;
 import com.palmergames.bukkit.towny.object.TownyUniverse;
+import com.palmergames.bukkit.towny.object.Town;
+
 
 
 
 public class main extends JavaPlugin implements Listener {
+	
+	private Map<Player, Location> tppvp = new HashMap<Player, Location>();
+	private Map<Player, Boolean> pvpproced = new HashMap<Player, Boolean>();
 	
 	@Override
 	public void onEnable() {
@@ -35,6 +43,16 @@ public class main extends JavaPlugin implements Listener {
 	}
 	
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+		if ((cmd.getName().equalsIgnoreCase("continue") && sender instanceof Player) && (args.length == 0)) {
+			Player player = (Player) sender;
+			sender.sendMessage("wee lets go!");
+			if (tppvp.get(player) != null) {
+				pvpproced.put(player, true);
+				player.teleport(tppvp.get(player));
+				tppvp.remove(player);
+				return true;
+			}
+		}
 		if (sender.hasPermission("banished.admin")) {
 			if ((cmd.getName().equalsIgnoreCase("banish") && sender instanceof Player) && (args.length == 0)) {
 				sender.sendMessage("§e» §3Command is: §b/Banish <Town> <Playername> §e«");
@@ -122,6 +140,36 @@ public class main extends JavaPlugin implements Listener {
 		Location loc = event.getTo();
 		String name = event.getPlayer().getDisplayName();
 		String townname = TownyUniverse.getTownName(loc);
+		String townfrom = TownyUniverse.getTownName(event.getFrom());
+		String townto = TownyUniverse.getTownName(event.getTo());
+		Resident resident;
+		String residenttown = null;
+		try {
+				resident = TownyUniverse.getDataSource().getResident(event.getPlayer().getName());
+				residenttown = resident.getTown().toString();
+			} catch (NotRegisteredException e1) {
+			}
+		if (townfrom != townto && townto != residenttown) {
+			if (townname != null && pvpproced.get(event.getPlayer()) == null) {
+				Town town;
+				Boolean townpvp = false;
+				try {
+					 town = TownyUniverse.getDataSource().getTown(townname);
+						townpvp = town.isPVP();
+					} catch (NotRegisteredException e) {
+						e.printStackTrace();
+					}
+					TownBlock townblock = TownyUniverse.getTownBlock(event.getTo());
+					Boolean pvp = townblock.getPermissions().toString().contains("pvp");
+					if (pvp || townpvp) { 
+						event.setCancelled(true);
+						event.getPlayer().teleport(event.getFrom());
+						tppvp.put(event.getPlayer(), event.getTo());
+						event.getPlayer().sendMessage("§e» §4WARNING§3 You are about to teleport into a pvp area, proceed with §b/continue §e«");
+					}
+			}
+		}
+		if (pvpproced.get(event.getPlayer()) != null) { pvpproced.remove(event.getPlayer()); }
 		if (event.getPlayer().hasPermission("banished.ignore")) { return; }
 		if (this.getConfig().getString("Banished."+townname+"."+event.getPlayer().getDisplayName()) == null) { return; }
 		if (this.getConfig().getString("Banished."+townname+"."+event.getPlayer().getDisplayName()).equalsIgnoreCase(name)) { 
@@ -129,7 +177,7 @@ public class main extends JavaPlugin implements Listener {
 			event.getPlayer().sendMessage("§e» §3You are Banished from the town of:§b "+townname+"§3 You are unable to enter their area. §e«");
 		}
 	}
-	
+
 	@EventHandler
 	public void PlayerChangePlotEvent(com.palmergames.bukkit.towny.event.PlayerChangePlotEvent event) {
 		int x = event.getTo().getX()*16;
